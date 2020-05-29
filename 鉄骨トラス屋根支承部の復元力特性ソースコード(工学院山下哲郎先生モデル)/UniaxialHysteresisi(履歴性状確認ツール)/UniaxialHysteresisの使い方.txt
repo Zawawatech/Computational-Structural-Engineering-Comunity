@@ -1,0 +1,7 @@
+手順1.	Input_YamashitaPinBearingModel.csvに必要事項を入力する。
+手順2.	同ファイルの載荷履歴は任意に入力できるが、始めの行にStep数を自然数で入力する。
+手順3.	UniaxialHysteresis.exeを実行する。
+手順4.	出力ファイルは以下の通り
+	Output_1_YamashitaQD.csv：履歴モデルの荷重変形関係。
+	Output_1.csv		：履歴モデルの荷重変形関係(プログラム内の無次元量)
+	Input_Loadinghistory.csv：中間ファイル。無視して良い。
