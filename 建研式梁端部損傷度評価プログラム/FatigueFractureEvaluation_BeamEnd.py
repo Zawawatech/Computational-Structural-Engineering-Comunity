@@ -100,5 +100,5 @@ if os.path.exists('InputFileIndex.csv'):
 		out.writerow(line)
 	file.close()
 else:
-	print(filename+"が存在しません")
+	print('InputFileIndex.csv'+"が存在しません")
 	a=input()
