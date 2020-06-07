@@ -217,16 +217,21 @@ def FuncFractureMiner(filename,IS,NS,EveType1,EveType2,Ey,C,m,OutFlag):
 	#----------------------------------------------------
 	#各ステップの損傷度評価
 	#----------------------------------------------------
-	for i in range(IP):
-		if i <= 2: continue
-		IFM = RainFlow(EE[0:i+1],i+1,NS,FR1)
-		Freq = sum(IFM)
+	if OutFlag == 0:
+		IFM = RainFlow(EE,IP,NS,FR1)
 		Dminer = 0.0	#マイナー則評価用の損傷度D
 		for j in range(NS):
 			if FR[j] > 0.0: Dminer = Dminer + IFM[j] / Nf[j]
 			if Dminer > 1.0: FractureFlag = 1.0
-		if OutFlag == 1:
-			out.writerow([EE[i][0],EE[i][1],Dminer,FractureFlag]+[int(j) for j in IFM])
+	else:
+		for i in range(IP):
+			if i <= 2: continue
+			IFM = RainFlow(EE[0:i+1],i+1,NS,FR1)
+			Dminer = 0.0	#マイナー則評価用の損傷度D
+			for j in range(NS):
+				if FR[j] > 0.0: Dminer = Dminer + IFM[j] / Nf[j]
+				if Dminer > 1.0: FractureFlag = 1.0
+				out.writerow([EE[i][0],EE[i][1],Dminer,FractureFlag]+[int(j) for j in IFM])
 	if OutFlag:file.close()
 	#----------------------------------------------------
 	#return
