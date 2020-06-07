@@ -13,10 +13,9 @@
 ・このGitHubコミュニティにて無償公開されているツール類を用いた結果生じるいかなる直接的・間接的損害について寺澤友貴およびプログラミング担当者は一切その責任を負いません。<br>
 
 
-Yuki TERAZAWA (Assistant Professor)
-Takeuchi Lab.,
-Dept. Arch. & Build. Eng.,
-Tokyo Institute of Technology
-TEL/FAX +81-03-5734-3165
-E-mail terazawa.y.aa@m.titech.ac.jp
-
+Yuki TERAZAWA (Assistant Professor)<br>
+Takeuchi Lab.,<br>
+Dept. Arch. & Build. Eng.,<br>
+Tokyo Institute of Technology<br>
+TEL/FAX +81-03-5734-3165<br>
+E-mail terazawa.y.aa@m.titech.ac.jp<br>
