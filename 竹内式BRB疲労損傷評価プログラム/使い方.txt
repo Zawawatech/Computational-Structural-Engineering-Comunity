@@ -30,7 +30,7 @@ c 入力ファイル
 　・BRB軸ひずみ時刻歴データCSVファイル(ユーザーが任意名で用意する。)
 
 d 出力ファイル
-　・Out_DamageEvaluationBRB.csv(梁端部損傷度評価のまとめ)
+　・Out_DamageEvaluationBRB.csv(BRB損傷度評価のまとめ)
 　・Out_DamageHistory_"BRB軸ひずみ時刻歴データファイル名".csv　(累積塑性ひずみの時刻歴データ、InputFileIndex.csvで出力の有無を指定できる。)
 
 e BRBの疲労損傷の評価方法について
