@@ -3,7 +3,7 @@
 #									CODED by Y.T(2020)
 #-----------------------------------------------------
 #更新履歴
-#2020/06/07		戯れに作る。※塑性ひずみの計算から弾性ひずみは消去しています。
+#2020/06/07		戯れに作る。
 #-----------------------------------------------------
 #Copyright (c) <2020>, <Yuki TERAZAWA>
 #All rights reserved.
@@ -46,9 +46,9 @@ def FuncNf(dEp,C,m):
 	Nf = C*(dEp) ** (m)
 	return Nf
 #----------------------------------------------------
-#無次元化軸ひずみ(別名：等価軸ひずみ)時刻歴から極値データを分離する。
-#引数：無次元化軸ひずみのリスト(ステップ、歪値)
-#戻り値：無次元化軸ひずみの極値リスト(ステップ、歪値)、極値数
+#時刻歴から極値データを分離する。
+#引数：時刻歴生データ(ステップ、歪値)
+#戻り値：極値リスト(ステップ、歪値)、極値数
 #----------------------------------------------------
 def FuncKokuchi(E):
 	#----------------------------------------------------
@@ -90,7 +90,7 @@ def FuncKokuchi(E):
 	return Y,IP
 #----------------------------------------------------
 #レインフロー法に基づき歪み度分布を計算する。
-#引数：軸ひずみ時刻歴の極値リスト,データ数,レインフロー法の範囲数,範囲FR1
+#引数：極値リスト,データ数,レインフロー法の範囲数,範囲FR1
 #戻り値：頻度数
 #----------------------------------------------------
 def RainFlow(E,LY,NS,FR):
@@ -157,7 +157,7 @@ def RainFlow(E,LY,NS,FR):
 #引数：時刻歴ファイル名,マイナー則の単位振幅サイズ,マイナー則の度数,評価タイプ1,評価タイプ2,塑性変形,C,m2,損傷度時刻歴の出力フラグ
 #戻り値：損傷度D,破断判定
 #----------------------------------------------------
-def FuncFractureBRB(filename,IS,NS,EveType1,EveType2,Ey,C,m,OutFlag):
+def FuncFractureMiner(filename,IS,NS,EveType1,EveType2,Ey,C,m,OutFlag):
 	#----------------------------------------------------
 	#ファイルの有無の確認
 	#----------------------------------------------------
@@ -240,7 +240,7 @@ if os.path.exists('InputFileIndex.csv'):
 		i = 0
 		for i,line in enumerate(csvline):
 			if i <= 0:continue
-			OutList.append([line[0]]+FuncFractureBRB(line[0],float(line[1]),int(line[2]),int(line[3]),int(line[4]),float(line[5]),float(line[6]),float(line[7]),int(line[8])))
+			OutList.append([line[0]]+FuncFractureMiner(line[0],float(line[1]),int(line[2]),int(line[3]),int(line[4]),float(line[5]),float(line[6]),float(line[7]),int(line[8])))
 			print(line[0]+"　評価終了")
 	file = open('Out_DamageEvaluation.csv',mode='w',newline="")
 	out = csv.writer(file)
