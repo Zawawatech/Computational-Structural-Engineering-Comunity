@@ -254,7 +254,7 @@ def FuncFractureBRB(filename,Ey,Amp,m2,C2,OutFlag,NS,IS):
 			if CumEp < 0.0:CumEp = 0.0
 		elif YieldFlag == 1:
 			CumEp = CumEp + abs(EE[i][1] - EE[i-1][1])*100.0	#実効の累積塑性ひずみ
-		if AveAmp > 0:
+		if AveAmp > 0 and CumEp > 0.0:
 			As = AS[i] - Ey
 			if As < 0.0:As = 0.0
 			As = AS[i] / CumEp
