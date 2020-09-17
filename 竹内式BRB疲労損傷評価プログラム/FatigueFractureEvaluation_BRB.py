@@ -233,7 +233,7 @@ def FuncFractureBRB(filename,Ey,Amp,m2,C2,OutFlag,NS,IS):
 	#----------------------------------------------------
 	CumEp = 0.0	#実効の累積塑性ひずみ
 	for i in range(IP):
-		if i <= 2: continue
+		if i <= 2: continue #レインフロー法は3点以上のデータが必要
 		IFM = RainFlow(EE[0:i+1],i+1,NS,FR1)
 		Freq = sum(IFM[MI:]) #全振幅で見たとき塑性域に入ってる頻度数だけ集計する。
 		CumAmp = 0.0	#平均塑性歪を出すための見かけの累積塑性ひずみ
@@ -248,7 +248,7 @@ def FuncFractureBRB(filename,Ey,Amp,m2,C2,OutFlag,NS,IS):
 			CumAmp = CumAmp + FR[j]*IFM[j]	#頻度数に基づく累積歪
 		if Freq != 0.0:
 			AveAmp = CumAmp / Freq * 100.0 * 0.5	#平均塑性ひずみ(片振幅)
-		if abs(EE[i][1]) >= Ey:YieldFlag = 1				#初期降伏の判定
+		if abs(EE[i][1]) >= Ey:YieldFlag = 1		#初期降伏の判定
 		if i == 0:
 			CumEp = (EE[i][1] - Ey) * 100.0
 			if CumEp < 0.0:CumEp = 0.0
@@ -258,9 +258,9 @@ def FuncFractureBRB(filename,Ey,Amp,m2,C2,OutFlag,NS,IS):
 			As = AS[i] - Ey
 			if As < 0.0:As = 0.0
 			As = AS[i] / CumEp
-		FratureCumEp = As / Xs0 + ((1.0-As)*0.25)*((AveAmp**(1.0+m2))/C2)**(-1.0/m2)	#現時点の平均塑性ひずみに対応した破断判定の累積塑性ひずみ
-		if FratureCumEp > 0.0:FratureCumEp = 1.0 / FratureCumEp							#現時点の平均塑性ひずみに対応した破断判定の累積塑性ひずみ
-		else: FratureCumEp = 99999999999.9
+		FratureCumEp = As / Xs0 + ((1.0-As)*0.25)*((AveAmp**(1.0+m2))/C2)**(-1.0/m2)	#現時点の平均塑性ひずみに対応した破断判定の累積塑性ひずみ(分母を計算)
+		if FratureCumEp > 0.0:FratureCumEp = 1.0 / FratureCumEp							#現時点の平均塑性ひずみに対応した破断判定の累積塑性ひずみ(逆数をとって完成)
+		else: FratureCumEp = 99999999999.9												#分母が0.0以下は極大値をいれておく
 		if FratureCumEp <= CumEp:
 			FractureFlag = 1
 			FinalAveAmp = AveAmp
@@ -269,6 +269,7 @@ def FuncFractureBRB(filename,Ey,Amp,m2,C2,OutFlag,NS,IS):
 		for j in range(NS):
 			if FR[j] > 0.0: Dminer = Dminer + IFM[j] / Nf[j]#FuncCoffinMansonNf(FR[j],m2,C2*2.0)
 		if OutFlag == 1:
+			if FratureCumEp == 99999999999.9:FratureCumEp='N/A'
 			out.writerow([EE[i][0],EE[i][1],AveAmp,CumEp,AS[i],As,FratureCumEp,FractureFlag,Dminer])
 	if OutFlag:file.close()
 	#----------------------------------------------------
@@ -278,6 +279,7 @@ def FuncFractureBRB(filename,Ey,Amp,m2,C2,OutFlag,NS,IS):
 		AveAmp       = FinalAveAmp
 		FratureCumEp = FinalFractureCumEp
 		As           = FinalAs
+	elif FratureCumEp == 99999999999.9:FratureCumEp='N/A'
 	return [AS[i],AveAmp,CumEp,FratureCumEp,As,FractureFlag,Dminer]
 
 if os.path.exists('InputFileIndex.csv'):
