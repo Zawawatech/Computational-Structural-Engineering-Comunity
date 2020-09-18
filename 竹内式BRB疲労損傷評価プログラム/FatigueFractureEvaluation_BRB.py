@@ -39,16 +39,16 @@ import os
 import sys
 #----------------------------------------------------
 #Coffin-Manson則の破断繰り返し回数を計算する。
-#引数：塑性ひずみ振幅,m2,C2
+#引数：塑性ひずみ振幅(無次元),m2,C2
 #戻り値：その振幅の破断繰り返し回数Nf
 #----------------------------------------------------
 def FuncCoffinMansonNf(dEp,m2,C2):
 	Nf = (dEp*100.0 / C2) ** (1.0 / m2)
 	return Nf
 #----------------------------------------------------
-#無次元化軸ひずみ(別名：等価軸ひずみ)時刻歴から極値データを分離する。
-#引数：無次元化軸ひずみのリスト(ステップ、歪値)
-#戻り値：無次元化軸ひずみの極値リスト(ステップ、歪値)、極値数
+#時刻歴から極値データを分離する。
+#引数：入力データままのリスト(ステップ、歪値)
+#戻り値：極値リスト(ステップ、歪値)、極値数、経験最大歪のリスト
 #----------------------------------------------------
 def FuncKokuchi(E):
 	#----------------------------------------------------
@@ -171,10 +171,15 @@ def RainFlow(E,LY,NS,FR):
 	return IFM
 #----------------------------------------------------
 #破断評価のターミナルルーチン
-#引数：軸ひずみ時刻歴ファイル名,降伏歪(-),歪増幅係数,as,m2,C,Xs0,損傷度時刻歴の出力フラグ,NS,IS
-#戻り値：
+#引数：(ファイル名,増幅フラグ,降伏歪(-),塑性下部長さ比,塑性化部断面積比,m2,C2,OutFlag)
+#戻り値：評価結果
 #----------------------------------------------------
-def FuncFractureBRB(filename,Ey,Amp,m2,C2,OutFlag,NS,IS):
+def FuncFractureBRB(filename,AmpFlag,Ey,LPL0,APAE,m2,C2,OutFlag):
+	#----------------------------------------------------
+	#定数の代入
+	#----------------------------------------------------
+	NS = 2000
+	IS = 0.0005
 	Xs0 = 35.0
 	#----------------------------------------------------
 	#ファイルの有無の確認
@@ -185,17 +190,34 @@ def FuncFractureBRB(filename,Ey,Amp,m2,C2,OutFlag,NS,IS):
 		print(filename+"が存在しません")
 		a = input()
 		return
+	#----------------------------------------------------
+	#csvを開いて入力データを読み込む
+	#----------------------------------------------------
 	with open(filename,mode='r') as csvfile:
 		csvline = csv.reader(csvfile)
 		E = []
+		Amp  = 0.0
+		Amp2 = 1.0
+		if AmpFlag == 1: #歪増幅を考慮する場合は塑性率の換算係数Amp,Amp2を計算する
+			Amp2= (1.0 / (LPL0 + (1.0-LPL0)*APAE))	#弾性域の増幅
+			Amp = (APAE * ((1.0-LPL0)/LPL0))		#塑性域の増幅
+			mucr = 1.0 / Amp2
+		elif AmpFlag == 2: #歪増幅を考慮する場合は塑性率の換算係数Amp,Amp2を計算する
+			Amp2= (1.0 / (LPL0 + (1.0-LPL0)*APAE))	#弾性域の増幅
+			Amp = (1.0-LPL0)/LPL0					#塑性域の増幅
+			mucr = 1.0 / Amp2
 		for line in csvline:
-			E.append([float(line[0]),float(line[1])*Amp]) #塑性化部を考慮した歪増幅を考慮
+			mu = float(line[1])
+			if AmpFlag >= 1:
+				if mu >= mucr:  mu = (mu*(1.0+Amp)+1.0-(1.0+Amp)/Amp2)*Ey #塑性域
+				else:           mu = (mu*Amp2)*Ey          				  #弾性域
+			E.append([float(line[0]),mu])
 	#----------------------------------------------------
-	#極値分解
+	#あらかじめ極値を分解したリストをつくる
 	#----------------------------------------------------
 	EE,IP,AS = FuncKokuchi(E)
 	#----------------------------------------------------
-	#歪み度範囲の作成
+	#歪み度範囲と破断繰返し回数のリスト作成
 	#----------------------------------------------------
 	S1 = IS * -0.5			#ある歪度範囲の中央値の計算に使う。
 	S2 = (1.0+1.0) * -Ey	#全振幅で見たときは2倍(正+負)の降伏歪を取り除く。
@@ -213,73 +235,101 @@ def FuncFractureBRB(filename,Ey,Amp,m2,C2,OutFlag,NS,IS):
 		KP = KP + IS
 		FR1.append(round(KP,4))			#レインフロー法で統計する時の歪度範囲は弾性分を含んだ単純な形式
 		if FR[i] > 0.0:
-			Nf.append(FuncCoffinMansonNf(FR[i],m2,C2*2.0))
+			Nf.append(FuncCoffinMansonNf(FR1[i],m2,C2*0.50))#マイナー則のための処理
 		else:
-			Nf.append(999999999999.0)
+			Nf.append(999999999999.0)						#マイナー則のための処理
 	#----------------------------------------------------
 	#フラグの初期化
 	#----------------------------------------------------
 	YieldFlag = 0
 	FractureFlag = 0
 	#----------------------------------------------------
-	#中間出力ファイルの準備
+	#損傷度時刻歴データファイルの出力準備
 	#----------------------------------------------------
 	if OutFlag == 1:
 		file = open('Out_DamageHistory_'+filename,mode='w',newline="")
 		out = csv.writer(file)
-		out.writerow(['Time(s)','軸ひずみ(無次元)x増幅係数','実効の平均塑性ひずみ片振幅(%)','実効の累積塑性ひずみ(%)','絶対値最大軸ひずみ(%)','骨格比','疲労破壊が生じる累積塑性ひずみ(%)','判定(1:疲労破壊)','マイナー則で評価した時の損傷度D'])  
+		out.writerow(['Time(s)','軸ひずみ(無次元)x増幅','実効の平均塑性ひずみ片振幅(%)','実効の累積塑性ひずみ(%)','絶対値最大軸ひずみ(%)','骨格比','疲労破壊が生じる累積塑性ひずみ(%)','判定(1:疲労破壊)','マイナー則で評価した時の損傷度D'])  
+	#----------------------------------------------------
+	#変数の初期化
+	#----------------------------------------------------
+	CumEp = 0.0				#実効の累積塑性ひずみ
+	FinalAveAmp = 0.0 		#最終(または破断時)平均塑性ひずみ振幅
+	FinalAs = 0.0 			#最終(または破断時)骨格比
+	FinalFractureCumEp = 0.0#最終(または破断時)破断判定歪振幅
 	#----------------------------------------------------
 	#各ステップの損傷度評価
 	#----------------------------------------------------
-	CumEp = 0.0	#実効の累積塑性ひずみ
 	for i in range(IP):
-		if i <= 2: continue #レインフロー法は3点以上のデータが必要
-		IFM = RainFlow(EE[0:i+1],i+1,NS,FR1)
-		Freq = sum(IFM[MI:]) #全振幅で見たとき塑性域に入ってる頻度数だけ集計する。
-		CumAmp = 0.0	#平均塑性歪を出すための見かけの累積塑性ひずみ
-		AveAmp = 0.0	#実効の平均塑性ひずみ
-		FratureCumEp = 0.0	#疲労破断判定用の累積塑性ひずみ
-		Dminer = 0.0	#マイナー則評価用の損傷度D
-		As = 0.0		#i時点の骨格比
-		FinalAveAmp = 0.0 		#最終(または破断時)平均塑性ひずみ振幅
-		FinalAs = 0.0 			#最終(または破断時)骨格比
-		FinalFractureCumEp = 0.0#最終(または破断時)破断判定歪振幅
-		for j in range(NS):
-			CumAmp = CumAmp + FR[j]*IFM[j]	#頻度数に基づく累積歪
-		if Freq != 0.0:
-			AveAmp = CumAmp / Freq * 100.0 * 0.5	#平均塑性ひずみ(片振幅)
-		if abs(EE[i][1]) >= Ey:YieldFlag = 1		#初期降伏の判定
-		if i == 0:
+		if i <= 2: continue		#レインフロー法は3点以上のデータが必要
+		#----------------------------------------------------
+		#変数の初期化
+		#----------------------------------------------------
+		CumAmp = 0.0			#平均塑性歪を出すための見かけの累積塑性ひずみ
+		AveAmp = 0.0			#実効の平均塑性ひずみ
+		FratureCumEp = 0.0		#疲労破断判定用の累積塑性ひずみ
+		Dminer = 0.0			#マイナー則評価用の損傷度D
+		As = 0.0				#i時点の骨格比
+		#----------------------------------------------------
+		#平均塑性ひずみ片振幅の評価
+		#----------------------------------------------------
+		IFM = RainFlow(EE[0:i+1],i+1,NS,FR1)					#レインフロー法で頻度数を計数する
+		Freq = sum(IFM[MI:]) 									#塑性域の頻度数を集計する
+		for j in range(NS): CumAmp = CumAmp + FR[j]*IFM[j]		#頻度数に基づく見かけの累積塑性歪を集計する
+		if Freq != 0.0: AveAmp = CumAmp / Freq * 100.0 * 0.5	#平均塑性ひずみ(片振幅)
+		#----------------------------------------------------
+		#累積塑性ひずみ振幅の評価
+		#----------------------------------------------------
+		if abs(EE[i][1]) >= Ey:YieldFlag = 1					#初期降伏の判定
+		if i == 0:												#1ステップ目だけの特別な処理
 			CumEp = (EE[i][1] - Ey) * 100.0
 			if CumEp < 0.0:CumEp = 0.0
-		elif YieldFlag == 1:
-			CumEp = CumEp + abs(EE[i][1] - EE[i-1][1])*100.0	#実効の累積塑性ひずみ
+		elif YieldFlag == 1:									#初期降伏後はひずみ増分を累積塑性ひずみに累加する
+			CumEp = CumEp + abs(EE[i][1] - EE[i-1][1])*100.0
+		#----------------------------------------------------
+		#骨格比の評価
+		#----------------------------------------------------	
 		if AveAmp > 0 and CumEp > 0.0:
 			As = AS[i] - Ey
 			if As < 0.0:As = 0.0
-			As = AS[i] / CumEp
+			As = AS[i] / CumEp #絶対値経験最大ひずみ / 累積塑性ひずみ振幅
+		#----------------------------------------------------
+		#疲労寿命の評価
+		#----------------------------------------------------	
 		FratureCumEp = As / Xs0 + ((1.0-As)*0.25)*((AveAmp**(1.0+m2))/C2)**(-1.0/m2)	#現時点の平均塑性ひずみに対応した破断判定の累積塑性ひずみ(分母を計算)
 		if FratureCumEp > 0.0:FratureCumEp = 1.0 / FratureCumEp							#現時点の平均塑性ひずみに対応した破断判定の累積塑性ひずみ(逆数をとって完成)
 		else: FratureCumEp = 99999999999.9												#分母が0.0以下は極大値をいれておく
+		#----------------------------------------------------
+		#疲労破壊の判定(破断が評価された場合はその時点の評価値を保存する)
+		#----------------------------------------------------	
 		if FratureCumEp <= CumEp:
 			FractureFlag = 1
 			FinalAveAmp = AveAmp
 			FinalAs = As
 			FinalFractureCumEp = FratureCumEp
+		#----------------------------------------------------
+		#マイナー則の損傷度評価(おまけ)
+		#----------------------------------------------------
 		for j in range(NS):
-			if FR[j] > 0.0: Dminer = Dminer + IFM[j] / Nf[j]#FuncCoffinMansonNf(FR[j],m2,C2*2.0)
+			if FR1[j] > 0.0: Dminer = Dminer + IFM[j] / Nf[j]	#弾性範囲も含めて淡々と頻度数と破断繰返し回数で判定
+		#----------------------------------------------------
+		#損傷度時刻歴を出力する場合の処理
+		#----------------------------------------------------
 		if OutFlag == 1:
 			if FratureCumEp == 99999999999.9:FratureCumEp='N/A'
 			out.writerow([EE[i][0],EE[i][1],AveAmp,CumEp,AS[i],As,FratureCumEp,FractureFlag,Dminer])
 	if OutFlag:file.close()
 	#----------------------------------------------------
-	#return
+	#出力用の処理
 	#----------------------------------------------------
 	if FractureFlag > 0:
 		AveAmp       = FinalAveAmp
 		FratureCumEp = FinalFractureCumEp
 		As           = FinalAs
 	elif FratureCumEp == 99999999999.9:FratureCumEp='N/A'
+	#----------------------------------------------------
+	#最終的な評価値をreturn
+	#----------------------------------------------------
 	return [AS[i],AveAmp,CumEp,FratureCumEp,As,FractureFlag,Dminer]
 
 if os.path.exists('InputFileIndex.csv'):
@@ -288,8 +338,8 @@ if os.path.exists('InputFileIndex.csv'):
 		csvline = csv.reader(csvfile)
 		i = 0
 		for i,line in enumerate(csvline):
-			if i <= 0:continue      #FuncFractureBRB(filename,           Ey,           Amp,            m2,            C2,     OutFlag,NS,IS)
-			OutList.append([line[0]]+FuncFractureBRB(line[0],float(line[1]),float(line[2]),float(line[3]),float(line[4]),int(line[5]),2000,0.0005))
+			if i <= 0:continue      #FuncFractureBRB(filename,     AmpFlag,            Ey,          LPL0,          APAE,            m2,            C2,     OutFlag)
+			OutList.append([line[0]]+FuncFractureBRB(line[0] ,int(line[1]),float(line[2]),float(line[3]),float(line[4]),float(line[5]),float(line[6]),int(line[7])))
 			print(line[0]+"　評価終了")
 	file = open('Out_DamageEvaluationBRB.csv',mode='w',newline="")
 	out = csv.writer(file)
